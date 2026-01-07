@@ -41,17 +41,40 @@ int main() {
     1000
   );
   printf("read NAK result %i\n", result);
+  for (int i = 0; buffer[i] != '\0'; i++) {
+        printf("%c ", (char)buffer[i]);  // Cast to char for clarity
+    }
+    printf("\n");
 
-
-  // Query the device a bunch of ways to cover all code branches
+  /* Query the device a bunch of ways to cover all code branches */
+  /* 1 */
   result = voltronic_dev_execute(dev, DISABLE_WRITE_VOLTRONIC_CRC, "QPI", 3, buffer, sizeof(buffer), 1000);
-  printf("execute 1 result %i, %s\n", result, buffer);
+  printf("execute 1 result %i\n", result);
+  for (int i = 0; buffer[i] != '\0'; i++) {
+        printf("%c ", (char)buffer[i]);  // Cast to char for clarity
+    }
+    printf("\n");
+  /* 2 */
   result = voltronic_dev_execute(dev, DISABLE_PARSE_VOLTRONIC_CRC, "QPI", 3, buffer, sizeof(buffer), 1000);
   printf("execute 2 result %i\n", result);
+  for (int i = 0; buffer[i] != '\0'; i++) {
+        printf("%c ", (char)buffer[i]);  // Cast to char for clarity
+    }
+    printf("\n");
+  /* 3 */
   result = voltronic_dev_execute(dev, DISABLE_VERIFY_VOLTRONIC_CRC, "QPI", 3, buffer, sizeof(buffer), 1000);
   printf("execute 3 result %i\n", result);
-  result = voltronic_dev_execute(dev, 0, "QPI", 3, buffer, sizeof(buffer), 1000);
+  for (int i = 0; buffer[i] != '\0'; i++) {
+        printf("%c ", (char)buffer[i]);  // Cast to char for clarity
+    }
+    printf("\n");
+    /* 4 */
+  result = voltronic_dev_execute(dev, VOLTRONIC_EXECUTE_DEFAULT_OPTIONS, "QPI", 3, buffer, sizeof(buffer), 1000);
   printf("execute 4 result %i\n", result);
+  for (int i = 0; buffer[i] != '\0'; i++) {
+        printf("%c ", (char)buffer[i]);  // Cast to char for clarity
+    }
+    printf("\n");
  
   // Close the connection to the device
   voltronic_dev_close(dev);
