@@ -24,7 +24,7 @@ int main() {
   char buffer[256];
   int result;
 
-  // Write end of input
+  /* Write end of input - clears serial channel on start up */ 
   result = voltronic_dev_write(
     dev,
     "\r",
@@ -33,7 +33,7 @@ int main() {
   );
   printf("write result %i\n", result);
 
-  // Read (NAK
+  /* Read (NAK */
   result = voltronic_dev_read(
     dev,
     buffer,
