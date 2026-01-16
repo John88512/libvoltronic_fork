@@ -1,10 +1,156 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include "voltronic_dev_serial.h"
 
 
 /* local functions */
+int checkStringPrefix(const char *str);
+uint8_t checksumAppend(const char *input, char *output);
+
+int main() {
+    char input[16];
+    char output[20];
+    uint8_t chk;
+
+  /* Create a serial port dev */
+  voltronic_dev_t dev = voltronic_serial_create(
+    "/dev/ttyUSB0",
+    2400,
+    DATA_BITS_EIGHT,
+    STOP_BITS_ONE,
+    SERIAL_PARITY_NONE
+  );
+
+  if (dev == 0) {
+    printf("Could not open serial communication -> exiting!\n");
+    exit(1);
+  }
+
+  char buffer[256];
+  int result;
+  int i;
+
+  // Write end of input
+  result = voltronic_dev_write(
+    dev,
+    "QPI\r",
+    4,
+    1000
+  );
+  printf("write end of input result %i\n", result);
+
+  // Read (NAK
+  result = voltronic_dev_read(
+    dev,
+    buffer,
+    sizeof(buffer),
+    1000
+  );
+  printf("read in expected (NAK result %i\n", result);
+  for (i = 0; buffer[i] != '\0'; i++) {
+        printf("%i ", (int)buffer[i]);  // Cast to int for clarity
+    }
+    printf("\n");
+  for (i = 0; buffer[i] != '\0'; i++) {
+        printf("%c ", (char)buffer[i]);  // Cast to char for clarity
+    }
+    printf("\n");
+
+  /* loop for input until "0", then quit */
+     printf("Enter strings (max 12 chars, '0' to quit):\n");
+ 
+  while (1) {
+       printf("> ");
+        if (fgets(input, sizeof(input), stdin) == NULL) {
+            /* Handle input read error */
+            continue;
+        }
+        
+        /* Remove newline if present */
+        input[strcspn(input, "\n")] = 0;
+        
+        /* Check for quit condition */
+        if (strcmp(input, "0") == 0) {
+            printf("Goodbye!\n");
+            break;
+        }
+        
+        /* check if command needs a checksum */
+        if (checkStringPrefix(input)) {
+          /* Compute checksum and append */
+            chk = checksumAppend(input, output);
+            if (!chk) {
+              printf("Error in checkStringPrefis\n");
+            }
+        } else {
+          strcpy(output, input);
+        }
+    printf("output string to send %s\n", output);
+    result = 0;
+    result = voltronic_dev_execute(dev, VOLTRONIC_EXECUTE_DEFAULT_OPTIONS, output, sizeof(output), buffer, sizeof(buffer), 1000);
+    printf("Sent %s\n", output);
+    if (result) {
+      printf("read in expected (NAK result %i\n", result);
+      for (i = 0; buffer[i] != '\0'; i++) {
+        printf("%i ", (int)buffer[i]);  // Cast to int for clarity
+      }
+      printf("\n");
+      for (i = 0; buffer[i] != '\0'; i++) {
+        printf("%c ", (char)buffer[i]);  // Cast to char for clarity
+      }
+      printf("\n");
+    } else {
+      printf("Error returned\n");
+    }
+  } /* while */
+  
+  // Close the connection to the device
+  voltronic_dev_close(dev);
+  printf("dev closed\n");
+
+  if (result > 2) {
+    printf("result > 2\n");
+    exit(0);
+  } else {
+    printf("result <= 2");
+    exit(2);
+  }
+} /* main */
+
+int checkStringPrefix(const char *str) {
+    /* Step 1: Validate input pointer - NULL input is error condition */
+    if (!str) {
+        return -1;
+    }
+
+    /* Step 2: Check first 12 characters for non-printable chars (32-126 ASCII range required) */
+    /* Non-printable characters indicate corrupted/invalid input */
+    for (int i = 0; i < 12 && str[i] != '\0'; i++) {
+        if (str[i] < 32 || str[i] > 126) {
+            return -1;  /* Error: Invalid character found */
+        }
+    }
+
+    /* Step 3: Define allowed prefix patterns in array for easy maintenance */
+    const char *prefixes[] = {"QEY", "QEM", "QED", "QEH"};
+    size_t num_prefixes = sizeof(prefixes) / sizeof(prefixes[0]);  /* Calculate array size */
+
+    /* Step 4: Compare input string prefix against each allowed pattern */
+    for (size_t i = 0; i < num_prefixes; i++) {
+        size_t len = strlen(prefixes[i]);  /* Get length of current prefix pattern */
+        
+        /* Use strncmp to compare exact prefix length - allows longer strings with matching prefix */
+        if (strncmp(str, prefixes[i], len) == 0) {
+            return 1;  /* Match found - success */
+        }
+    }
+
+    /* Step 5: No matches found */
+    return 0;
+} /* checkStringPrefix */
+
 /*
  * checksum_append_to - Computes 8-bit checksum and appends decimal string to output
  * @input: Input null-terminated string (max 12 characters)
@@ -58,109 +204,4 @@ uint8_t checksumAppend(const char *input, char *output) {
     
     /* Return computed checksum value for verification */
     return checksum8;
-}
-
-
-int main() {
-    char input[16];
-    char output[20];
-    uint8_t chk;
-
-  /* Create a serial port dev */
-  voltronic_dev_t dev = voltronic_serial_create(
-    "/dev/ttyUSB0",
-    2400,
-    DATA_BITS_EIGHT,
-    STOP_BITS_ONE,
-    SERIAL_PARITY_NONE
-  );
-
-  if (dev == 0) {
-    printf("Could not open serial communication -> exiting!\n");
-    exit(1);
-  }
-
-  char buffer[256];
-  int result;
-  int i, j;
-
-  // Write end of input
-  result = voltronic_dev_write(
-    dev,
-    "\r",
-    1,
-    1000
-  );
-  printf("write end of input result %i\n", result);
-
-  // Read (NAK
-  result = voltronic_dev_read(
-    dev,
-    buffer,
-    sizeof(buffer),
-    1000
-  );
-  printf("read in expected (NAK result %i\n", result);
-  for (i = 0; buffer[i] != '\0'; i++) {
-        printf("%i ", (int)buffer[i]);  // Cast to int for clarity
-    }
-    printf("\n");
-  for (i = 0; buffer[i] != '\0'; i++) {
-        printf("%c ", (char)buffer[i]);  // Cast to char for clarity
-    }
-    printf("\n");
-
-  /* loop for input until "0", then quit */
-     printf("Enter strings (max 12 chars, '0' to quit):\n");
- 
-  while (1) {
-       printf("> ");
-        if (fgets(input, sizeof(input), stdin) == NULL) {
-            /* Handle input read error */
-            continue;
-        }
-        
-        /* Remove newline if present */
-        input[strcspn(input, "\n")] = 0;
-        
-        /* Check for quit condition */
-        if (strcmp(input, "0") == 0) {
-            printf("Goodbye!\n");
-            break;
-        }
-        
-        if 
-        /* Compute checksum and append */
-        chk = checksumAppend(input, output);
-
-
-
-
-
-
-    result = 0;
-    result = voltronic_dev_execute(dev, VOLTRONIC_EXECUTE_DEFAULT_OPTIONS, "QPI", 3, buffer, sizeof(buffer), 1000);
-    printf("read in expected (NAK result %i\n", result);
-    for (i = 0; buffer[i] != '\0'; i++) {
-      printf("%i ", (int)buffer[i]);  // Cast to int for clarity
-    }
-    printf("\n");
-    for (i = 0; buffer[i] != '\0'; i++) {
-      printf("%c ", (char)buffer[i]);  // Cast to char for clarity
-    }
-    printf("\n");
-  }
-  
-  // Close the connection to the device
-  voltronic_dev_close(dev);
-  printf("dev closed\n");
-
-  if (result > 2) {
-    printf("result > 2\n");
-    exit(0);
-  } else {
-    printf("result <= 2");
-    exit(2);
-  }
-}
-
+} /* checksumAppend */
