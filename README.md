@@ -1,6 +1,6 @@
-## for of libvoltronic repository
+## this is a fork of the libvoltronic repository
 ## https://github.com/jvandervyver/libvoltronic
-## with my local changen
+## plus my changes
 ## libvoltronic
 Library to interface with [Voltronic](http://voltronicpower.com) devices like the Axpert &amp; InfiniSolar
 
