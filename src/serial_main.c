@@ -10,18 +10,13 @@ int checkStringPrefix(const char *str);
 uint8_t checksumAppend(const char *input, char *output);
 
 int main() {
-    char input[16];
-    char output[20];
-    uint8_t chk;
+  char input[16];
+  char output[20];
+  //uint8_t chk;
 
   /* Create a serial port dev */
   voltronic_dev_t dev = voltronic_serial_create(
-    "/dev/ttyUSB0",
-    2400,
-    DATA_BITS_EIGHT,
-    STOP_BITS_ONE,
-    SERIAL_PARITY_NONE
-  );
+      "/dev/ttyUSB0", 2400, DATA_BITS_EIGHT, STOP_BITS_ONE, SERIAL_PARITY_NONE);
 
   if (dev == 0) {
     printf("Could not open serial communication -> exiting!\n");
@@ -31,81 +26,112 @@ int main() {
   char buffer[256];
   int result;
   int i;
+  size_t lengthOutputBuffer;
 
-  // Write end of input
-  result = voltronic_dev_write(
-    dev,
-    "QPI\r",
-    4,
-    1000
-  );
-  printf("write end of input result %i\n", result);
+  /* Write end of input
+   *  number of bytes written
+   *  0 on timeout
+   *  -1 on error
+   */
+  result = voltronic_dev_write(dev, "QPI\r", 4, 1000);
+  printf("Number of bytes written to serial: %i\n", result);
+  printf("\n");
 
-  // Read (NAK
-  result = voltronic_dev_read(
-    dev,
-    buffer,
-    sizeof(buffer),
-    1000
-  );
-  printf("read in expected (NAK result %i\n", result);
-  for (i = 0; buffer[i] != '\0'; i++) {
-        printf("%i ", (int)buffer[i]);  // Cast to int for clarity
+  /* Read (NAK
+   *  number of bytes read
+   *  0 on timeout
+   *  -1 on error
+   */
+  result = voltronic_dev_read(dev, buffer, sizeof(buffer), 1000);
+  printf("read in result %i\n", result);
+  if (result > 0) {
+    for (i = 0; buffer[i] != '\0'; i++) {
+      printf("%i ", (int)buffer[i]);  // Cast to int for clarity
     }
     printf("\n");
-  for (i = 0; buffer[i] != '\0'; i++) {
-        printf("%c ", (char)buffer[i]);  // Cast to char for clarity
+    for (i = 0; buffer[i] != '\0'; i++) {
+      printf("%c ", (char)buffer[i]);  // Cast to char for clarity
     }
     printf("\n");
+  } else {
+    printf("Timeout or error\n");
+  }
+  printf("\n");
 
   /* loop for input until "0", then quit */
-     printf("Enter strings (max 12 chars, '0' to quit):\n");
- 
+  printf("Enter strings (max 12 chars, '0' to quit):\n");
+
   while (1) {
-       printf("> ");
-        if (fgets(input, sizeof(input), stdin) == NULL) {
-            /* Handle input read error */
-            continue;
-        }
-        
-        /* Remove newline if present */
-        input[strcspn(input, "\n")] = 0;
-        
-        /* Check for quit condition */
-        if (strcmp(input, "0") == 0) {
-            printf("Goodbye!\n");
-            break;
-        }
-        
-        /* check if command needs a checksum */
-        if (checkStringPrefix(input)) {
-          /* Compute checksum and append */
-            chk = checksumAppend(input, output);
-            if (!chk) {
-              printf("Error in checkStringPrefis\n");
-            }
-        } else {
-          strcpy(output, input);
-        }
-    printf("output string to send %s\n", output);
-    result = 0;
-    result = voltronic_dev_execute(dev, VOLTRONIC_EXECUTE_DEFAULT_OPTIONS, output, sizeof(output), buffer, sizeof(buffer), 1000);
-    printf("Sent %s\n", output);
-    if (result) {
-      printf("read in expected (NAK result %i\n", result);
-      for (i = 0; buffer[i] != '\0'; i++) {
-        printf("%i ", (int)buffer[i]);  // Cast to int for clarity
-      }
-      printf("\n");
-      for (i = 0; buffer[i] != '\0'; i++) {
-        printf("%c ", (char)buffer[i]);  // Cast to char for clarity
-      }
-      printf("\n");
-    } else {
-      printf("Error returned\n");
+    printf("Input command > ");
+    scanf("%s", input);
+
+    /* Exit loop on quit condition */
+    if (input[0] == *"0") {
+      printf("Goodbye!\n");
+      break;
     }
+
+    /* input received, show what came in */
+    printf("input: %s\n", input);
+    for (i = 0; input[i] != '\0'; i++) {
+      printf("%x ", (int)input[i]);  // Cast to int for clarity
+    }
+    printf("\n");
+    for (i = 0; input[i] != '\0'; i++) {
+      printf("%c ", (char)input[i]);  // Cast to char for clarity
+    }
+    printf("\n");
+    printf("Postision of EOL from left: %i\n", i);
+
+    /* replace newline, if present, with CR */
+    input[i] = *"\r";
+    printf("add <CR> to end of string\n");
+
+    // /* check if command needs a checksum */
+    // if (checkStringPrefix(input)) {
+    //   /* Compute checksum and append */
+    //   chk = checksumAppend(input, output);
+    //   if (!chk) {
+    //     printf("Error in checkStringPrefis\n");
+    //   }
+    // } else {
+      /* otherwise copy input into output */
+      printf("copy input string to output string\n");
+      for (i = 0; input[i] != '\0'; i++) {
+        output[i] = input[i];
+      }
+      printf("Postision now of EOL from left: %i\n", i);
+//    }
+    printf("output string to send %s\n", output);
+    printf("\n");
+    /* input received, show what came in */
+    for (i = 0; output[i] != '\0'; i++) {
+      printf("%x ", (int)output[i]);  // Cast to int for clarity
+    }
+    printf("\n");
+    for (i = 0; output[i] != '\r'; i++) {
+      printf("%c ", (char)output[i]);  // Cast to char for clarity
+    }
+    printf("\n");
+    printf("Postision of EOL: %i\n", (i+1));
+
+    lengthOutputBuffer = strlen(output);
+    printf("Nr bytes to send %i\n", (int)lengthOutputBuffer);
+    printf("\n");
+
+    result = voltronic_dev_execute(dev,
+    VOLTRONIC_EXECUTE_DEFAULT_OPTIONS, output, lengthOutputBuffer, buffer,
+    sizeof(buffer), 1000); printf("Sent %s\n", output);
+    // /* Write end of input
+    //  *  number of bytes written
+    //  *  0 on timeout
+    //  *  -1 on error
+    //  */
+    // result = voltronic_dev_write(dev, output, lengthOutputBuffer, 1000);
+    printf("result of send %i\n", result);
+
   } /* while */
-  
+
   // Close the connection to the device
   voltronic_dev_close(dev);
   printf("dev closed\n");
@@ -114,7 +140,7 @@ int main() {
     printf("result > 2\n");
     exit(0);
   } else {
-    printf("result <= 2");
+    printf("result <= 2\n");
     exit(2);
   }
 } /* main */
