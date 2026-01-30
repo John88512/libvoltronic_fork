@@ -4,11 +4,15 @@
 #include <string.h>
 #include "voltronic_dev_serial.h"
 
+/* Defines */
+#define USB_PORT "/dev/ttyUSB2"
 
 /* local functions */
 int checkStringPrefix(const char *str);
 uint8_t checksumAppend(const char *input, char *output);
+int printString(const char *string);
 
+/* mimics the masterpower - receive message, send answer */
 int main() {
   char input[16];
   char output[20];
@@ -16,7 +20,7 @@ int main() {
 
   /* Create a serial port dev */
   voltronic_dev_t dev = voltronic_serial_create(
-      "/dev/ttyUSB0", 2400, DATA_BITS_EIGHT, STOP_BITS_ONE, SERIAL_PARITY_NONE);
+      USB_PORT, 2400, DATA_BITS_EIGHT, STOP_BITS_ONE, SERIAL_PARITY_NONE);
 
   if (dev == 0) {
     printf("Could not open serial communication -> exiting!\n");
@@ -25,15 +29,16 @@ int main() {
 
   char buffer[256];
   int result;
-  int i;
+  int i = 0;
   size_t lengthOutputBuffer;
+  int numberOfCharacters;
 
   /* Write end of input
    *  number of bytes written
    *  0 on timeout
    *  -1 on error
    */
-  result = voltronic_dev_write(dev, "QPI\r", 4, 1000);
+  result = voltronic_dev_write(dev, "(NAK\r", 4, 1000);
   printf("Number of bytes written to serial: %i\n", result);
   printf("\n");
 
@@ -45,16 +50,9 @@ int main() {
   result = voltronic_dev_read(dev, buffer, sizeof(buffer), 1000);
   printf("read in result %i\n", result);
   if (result > 0) {
-    for (i = 0; buffer[i] != '\0'; i++) {
-      printf("%i ", (int)buffer[i]);  // Cast to int for clarity
-    }
-    printf("\n");
-    for (i = 0; buffer[i] != '\0'; i++) {
-      printf("%c ", (char)buffer[i]);  // Cast to char for clarity
-    }
-    printf("\n");
+    printString(buffer);
   } else {
-    printf("Timeout or error\n");
+    printf("Empty string, timeout or error\n");
   }
   printf("\n");
 
@@ -71,20 +69,17 @@ int main() {
       break;
     }
 
-    /* input received, show what came in */
-    printf("input: %s\n", input);
-    for (i = 0; input[i] != '\0'; i++) {
-      printf("%x ", (int)input[i]);  // Cast to int for clarity
+    /* print command entered */
+    numberOfCharacters = printString (input);
+    if (numberOfCharacters > 0) {
+      printf("Postision of EOL from left: %i\n", numberOfCharacters);
+    } else {
+      printf("error in printing\n");
     }
-    printf("\n");
-    for (i = 0; input[i] != '\0'; i++) {
-      printf("%c ", (char)input[i]);  // Cast to char for clarity
-    }
-    printf("\n");
-    printf("Postision of EOL from left: %i\n", i);
+    
 
     /* replace newline, if present, with CR */
-    input[i] = *"\r";
+    input[numberOfCharacters] = *"\r";
     printf("add <CR> to end of string\n");
 
     // /* check if command needs a checksum */
@@ -104,30 +99,34 @@ int main() {
 //    }
     printf("output string to send %s\n", output);
     printf("\n");
-    /* input received, show what came in */
-    for (i = 0; output[i] != '\0'; i++) {
-      printf("%x ", (int)output[i]);  // Cast to int for clarity
+    /* print characters send */
+    numberOfCharacters = printString (input);
+    if (numberOfCharacters > 0) {
+      printf("Postision of EOL from left: %i\n", i);
+    } else {
+      printf("error in printing\n");
     }
-    printf("\n");
-    for (i = 0; output[i] != '\r'; i++) {
-      printf("%c ", (char)output[i]);  // Cast to char for clarity
-    }
-    printf("\n");
-    printf("Postision of EOL: %i\n", (i+1));
-
     lengthOutputBuffer = strlen(output);
     printf("Nr bytes to send %i\n", (int)lengthOutputBuffer);
     printf("\n");
 
-    result = voltronic_dev_execute(dev,
-    VOLTRONIC_EXECUTE_DEFAULT_OPTIONS, output, lengthOutputBuffer, buffer,
-    sizeof(buffer), 1000); printf("Sent %s\n", output);
-    // /* Write end of input
+    // result = voltronic_dev_execute(dev,
+    // VOLTRONIC_EXECUTE_DEFAULT_OPTIONS, output, lengthOutputBuffer, buffer,
+    // sizeof(buffer), 1000); printf("Sent %s\n", output);
+    // /* result of serial send
     //  *  number of bytes written
     //  *  0 on timeout
     //  *  -1 on error
     //  */
-    // result = voltronic_dev_write(dev, output, lengthOutputBuffer, 1000);
+    // printf("result of send %i\n", result);
+
+    result = voltronic_dev_write(dev, output, lengthOutputBuffer, 1000);
+
+    /* result of serial send
+     *  number of bytes written
+     *  0 on timeout
+     *  -1 on error
+     */
     printf("result of send %i\n", result);
 
   } /* while */
@@ -231,3 +230,37 @@ uint8_t checksumAppend(const char *input, char *output) {
     /* Return computed checksum value for verification */
     return checksum8;
 } /* checksumAppend */
+
+/** printString - prints inputed string in ascii and hex characters
+ *
+ * Arguements:  String - pointer to string to be printed
+ * 
+ * Returns:     on success the number of characters until \0 (end of string)
+ *              on empty string, 0
+ *              on error -1
+ * 
+ * 25-Jan-26 JnG created
+ * 
+ */
+int printString(const char* string) {
+  int i;
+
+  for (i = 0; string[i] != '\0'; i++) {
+    printf("%x ", (int)string[i]);  // Cast to int for clarity
+  }
+  printf("\n");
+  for (i = 0; string[i] != '\0'; i++) {
+    if ((int)(string[i] > 32) & (int)(string[i] < 127)) {
+      printf("%c ", (char)string[i]);  // Cast to char for clarity
+    } else {
+      printf("*");
+    }
+  }
+  printf("\n");
+
+  if (i > 0) {
+    return (i);
+  } else {
+    return (-1);
+  }
+}
