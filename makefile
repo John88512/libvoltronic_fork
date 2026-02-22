@@ -23,7 +23,7 @@ SERIAL_BINARY := $(LDIR)/libserialport/.libs/libserialport.a
 HID_BINARY := $(LDIR)/hidapi/libusb/.libs/libhidapi.a
 
 # Object files shared by all directives
-SHARED_OBJS = $(ODIR)/voltronic_crc.o $(ODIR)/voltronic_dev.o
+SHARED_OBJS = $(ODIR)/voltronic_crc.o $(ODIR)/voltronic_dev.o ./find_port/findport.o
 
 # Directives
 default: $(SHARED_OBJS) $(ODIR)/serial_main.o $(ODIR)/voltronic_dev_serial_libserialport.o $(SERIAL_BINARY)

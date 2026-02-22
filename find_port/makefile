@@ -1,20 +1,37 @@
-# A simple Makefile to build the examples in this directory.
+# Makefile for findport.c
 #
-# This example file is released to the public domain.
+# Usage:
+#   make release   → DEBUG=0, build findport.o only
+#   make           → same as 'make release'
+#   make debug     → DEBUG=1, build findport.o and link 'findport_debug'
+#   make clean     → remove all objects and binaries
 
-CC = gcc
+CC         = gcc
 PKG_CONFIG = pkg-config
-CFLAGS = -g -Wall $(shell $(PKG_CONFIG) --cflags libserialport)
-LIBS = $(shell $(PKG_CONFIG) --libs libserialport)
 
-SOURCES = $(wildcard *.c)
+BASE_CFLAGS = -Wall $(shell $(PKG_CONFIG) --cflags libserialport)
+LIBS        = $(shell $(PKG_CONFIG) --libs libserialport)
 
-BINARIES = $(SOURCES:.c=)
+SRC        = findport.c
+OBJ        = findport.o
+DEBUG_BIN  = findport
 
-%: %.c
-	$(CC) $(CFLAGS) $< $(LIBS) -o $@
+# Default: release object only (DEBUG=0)
+all: release
 
-all: $(BINARIES)
+# Release: compile object only, DEBUG=0
+release: $(OBJ)
+
+$(OBJ): $(SRC)
+	$(CC) $(BASE_CFLAGS) -DDEBUG=0 -O2 -c $< -o $@
+
+# Debug: recompile with DEBUG=1 and link binary
+debug: $(SRC)
+	$(CC) $(BASE_CFLAGS) -DDEBUG=1 -g -O0 -c $(SRC) -o $(OBJ)
+	$(CC) $(BASE_CFLAGS) -DDEBUG=1 -g -O0 $(OBJ) $(LIBS) -o $(DEBUG_BIN)
 
 clean:
-	rm $(BINARIES)
+	rm -f $(OBJ) $(DEBUG_BIN)
+
+.PHONY: all release debug clean
+
