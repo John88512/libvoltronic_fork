@@ -21,23 +21,6 @@
 /*** local prototypes ***/
 int stringCompare(const char* string1, const char* string2, int maxSize);
 
-int main(int argc, char** argv) {
-  char piPortName[20] = "";
-  char mpPortName[20] = "";
-
-  /*  Store return values (SP_OK=0 on success) */
-  int pi_res = get_port_name(PI_DEV_VID, PI_DEV_PID, PI_DEV_SERIAL, piPortName);
-  printf("PI port: %s (res=%d)\n", piPortName, pi_res);
-
-  /* leave space */
-  printf("\n");
-  printf("\n");
-
-  int mp_res = get_port_name(MP_DEV_VID, MP_DEV_PID, MP_DEV_SERIAL, mpPortName);
-  printf("MP port: %s (res=%d)\n", mpPortName, mp_res);
-  return 0;
-}
-
 /* get_port_name - returns the device name for a serial port using
  *                 the vendor ID, the product ID and serial number
  *                 of the device being searched for

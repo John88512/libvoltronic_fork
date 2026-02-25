@@ -23,19 +23,19 @@ int main() {
 
   /* get serial port name for adapters used */
   /* blue adapter */
-  fp_result = int get_port_name (PI_DEV_VID, PI_DEV_PID, PI_DEV_SERIAL, piPortName);
+  fp_result = get_port_name (PI_DEV_VID, PI_DEV_PID, PI_DEV_SERIAL, piPortName);
   if (fp_result == 0) {
     printf ("Blue adapter not found\n");
   }
   /* grey adapter -  simulates MasterPower */
-  fp_result = int get_port_name (MP_DEV_VID, MP_DEV_PID, MP_DEV_SERIAL, mpPortName);
+  fp_result = get_port_name (MP_DEV_VID, MP_DEV_PID, MP_DEV_SERIAL, mpPortName);
   if (fp_result == 0) {
     printf ("Grey adapter not found\n");
   }
 
   /* Create a serial ports */
   voltronic_dev_t dev = voltronic_serial_create(
-      USB_PORT, 2400, DATA_BITS_EIGHT, STOP_BITS_ONE, SERIAL_PARITY_NONE);
+      piPortName, 2400, DATA_BITS_EIGHT, STOP_BITS_ONE, SERIAL_PARITY_NONE);
 
   if (dev == 0) {
     printf("Could not open serial communication -> exiting!\n");
