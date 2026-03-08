@@ -1,83 +1,54 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>     /* uint16_t */
-#include <string.h>     /* strlen(), */
+#include <stdio.h>     /* printf() srtlen() */
+#include <string.h>    /* strlen() */
 #include "voltronic_dev_serial.h"
-#include "findport.h"
 
-/* Defines */
-#define PVPI
-#define MP_N
+/* local prototypes */
+int printString(const char* string);
 
-/* local functions */
-int checkStringPrefix(const char *str);
-uint8_t checksumAppend(const char *input, char *sendData);
-int printString(const char *string);
+/**
+* This class is only here to link everything related to serial port to assert compilation
+*/
 
-/* mimics the masterpower - receive message, send answer */
 int main() {
-  char input[20];
-  char sendData[50];
-  char receiveData[50];
-  char portName[20] = "";
-  int fp_result = 0;
-
-  /* get serial port name for adapters used */
-#ifdef PVPI
-  /* blue adapter */
-  fp_result = get_port_name (PI_DEV_VID, PI_DEV_PID, PI_DEV_SERIAL, portName);
-  if (fp_result == 0) {
-    printf ("Blue adapter not found\n");
-  }
-#elif
-  /* grey adapter -  simulates MasterPower */
-  fp_result = get_port_name (MP_DEV_VID, MP_DEV_PID, MP_DEV_SERIAL, portName);
-  if (fp_result == 0) {
-    printf ("Grey adapter not found\n");
-  }
-#endif
-
-  /* Create a serial port */
+  // Create a serial port dev
   voltronic_dev_t dev = voltronic_serial_create(
-      portName, 2400, DATA_BITS_EIGHT, STOP_BITS_ONE, SERIAL_PARITY_NONE);
+    "/dev/ttyUSB0",
+    2400,
+    DATA_BITS_EIGHT,
+    STOP_BITS_ONE,
+    SERIAL_PARITY_NONE
+  );
 
   if (dev == 0) {
-    printf("Could not open serial communication -> exiting!\n");
+    printf("Could not open serial port \n");
     exit(1);
   }
 
-  //char buffer[256];
-  int result = 0;
-  int i = 0;
-  size_t lengthsendDataBuffer;
-  size_t lengthInputBuffer;
-  int numberOfCharactersIn;
-  int numberOfCharactersOut;
-  int readResult = 0;
-  
+  char input[20];
+  char buffer[256];
+  int result;
+  size_t lenInputString;
+  int numCharsReceived;
 
-  // /* Write end of input
-  //  *  number of bytes written
-  //  *  0 on timeout
-  //  *  -1 on error
-  //  */
-  // result = voltronic_dev_write(dev, "(NAK\r", 4, 1000);
-  // printf("Number of bytes written to serial: %i\n", result);
-  // printf("\n");
+  // Write end of input
+  result = voltronic_dev_write(
+    dev,
+    "\r",
+    1,
+    1000
+  );
+  printf("Send \r result: %i\n", result);
 
-  // /* Read (NAK
-  //  *  number of bytes read
-  //  *  0 on timeout
-  //  *  -1 on error
-  //  */
-  // result = voltronic_dev_read(dev, buffer, sizeof(buffer), 1000);
-  // printf("read in result %i\n", result);
-  // if (result > 0) {
-  //   printString(buffer);
-  // } else {
-  //   printf("Empty string, timeout or error\n");
-  // }
-  printf("\n");
+  // Read (NAK
+  result = voltronic_dev_read(
+    dev,
+    buffer,
+    sizeof(buffer),
+    1000
+  );
+  printf("Receive NAK result: %i\n", result);
+  if (result > 0) printf("buffer: %s \n", buffer);
 
   /* loop for input until "0", then quit */
   printf("Enter strings (max 12 chars, '0' to quit):\n");
@@ -92,177 +63,35 @@ int main() {
       break;
     }
 
-    /* print command entered */
-    numberOfCharactersIn = printString (input);
-    if (numberOfCharactersIn > 0) {
-      printf("Postision of EOL from left: %i\n", numberOfCharactersIn);
+    lenInputString = strlen(input);
+    printf("strlen input: %i\n", (int)lenInputString);
+    printf("\n");
+
+    /* Query the device a bunch of ways to cover all code branches */
+    // result = voltronic_dev_execute(dev, DISABLE_WRITE_VOLTRONIC_CRC, input, 3, buffer, sizeof(buffer), 1000);
+    // result = voltronic_dev_execute(dev, DISABLE_PARSE_VOLTRONIC_CRC, input, 3, buffer, sizeof(buffer), 1000);
+    // result = voltronic_dev_execute(dev, DISABLE_VERIFY_VOLTRONIC_CRC, input, 3, buffer, sizeof(buffer), 1000);
+    result = voltronic_dev_execute(dev, 0, input, lenInputString, buffer, sizeof(buffer), 1000);
+
+    printf("Returned:\n");
+    numCharsReceived = printString(buffer);
+    printf("\n");
+    if (result >0) {
+      printf("Characters received: %i\n", numCharsReceived);
     } else {
-      printf("error in printing\n");
-    }
-    
+      printf("no characters received\n");
+    }  
 
-    /* replace newline, if present, with CR add \0 for end of string */
-    input[numberOfCharactersIn] = *"\r";
-    input[(numberOfCharactersIn +1)] = *"\0";
-    printf("add <CR> and NULL to end of string\n");
-    numberOfCharactersIn = printString (input);
-    printf("numberOfCharactersIn %i \n", numberOfCharactersIn);
-
-    // /* check if command needs a checksum */
-    // if (checkStringPrefix(input)) {
-    //   /* Compute checksum and append */
-    //   chk = checksumAppend(input, sendData);
-    //   if (!chk) {
-    //     printf("Error in checkStringPrefis\n");
-    //   }
-    /* otherwise copy input into sendData */
-    printf("strlen(input) %i \n", strlen(input));
-    printf("copy input string to sendData string\n");
-    for (i = 0; input[i] != '\0'; i++) {
-      sendData[i] = input[i];
-    }
-    /* add the EOL to sendData */
-    sendData[i] = *"\0";
-    printf("strlen(sendData) %i \n", strlen(sendData));
-    numberOfCharactersOut = printString (sendData);
-    printf("Postision sendData of EOL from left: %i\n", numberOfCharactersOut);
-    lengthsendDataBuffer = strlen(sendData);
-    printf("Nr bytes to send %i\n", (int)lengthsendDataBuffer);
-    printf("\n");
-
-    // result = voltronic_dev_execute(dev,
-    // VOLTRONIC_EXECUTE_DEFAULT_OPTIONS, sendData, lengthsendDataBuffer, buffer,
-    // sizeof(buffer), 1000); 
-   
-    /* send command */
-    result = voltronic_dev_write(dev, sendData, lengthsendDataBuffer, 1000);
-
-    /* result of serial send
-     *  number of bytes written
-     *  0 on timeout
-     *  -1 on error
-     */
-    printf("result of send %i\n", result);
-    printf("\n");
-
-    /* pick up response */
-    printf("Waiting for response . . .\n");
-    lengthInputBuffer = sizeof(input);
-    readResult = voltronic_dev_read(dev, receiveData, lengthInputBuffer, 1000);
-
-    if (readResult > 0) {
-      /* print received dats */
-      printf("Received data %s \n", input);
-    }
-    else if (readResult == 0) {
-      printf("Received timout\n");
-    }
-    else
-    {
-      /* print error code received */
-      printf("Receive error %i \n", readResult);
-    }
   } /* while */
-
   // Close the connection to the device
   voltronic_dev_close(dev);
-  printf("dev closed\n");
 
   if (result > 2) {
-    printf("result > 2\n");
     exit(0);
   } else {
-    printf("result <= 2\n");
     exit(2);
   }
 } /* main */
-
-int checkStringPrefix(const char *str) {
-    /* Step 1: Validate input pointer - NULL input is error condition */
-    if (!str) {
-        return -1;
-    }
-
-    /* Step 2: Check first 12 characters for non-printable chars (32-126 ASCII range required) */
-    /* Non-printable characters indicate corrupted/invalid input */
-    for (int i = 0; i < 12 && str[i] != '\0'; i++) {
-        if (str[i] < 32 || str[i] > 126) {
-            return -1;  /* Error: Invalid character found */
-        }
-    }
-
-    /* Step 3: Define allowed prefix patterns in array for easy maintenance */
-    const char *prefixes[] = {"QEY", "QEM", "QED", "QEH"};
-    size_t num_prefixes = sizeof(prefixes) / sizeof(prefixes[0]);  /* Calculate array size */
-
-    /* Step 4: Compare input string prefix against each allowed pattern */
-    for (size_t i = 0; i < num_prefixes; i++) {
-        size_t len = strlen(prefixes[i]);  /* Get length of current prefix pattern */
-        
-        /* Use strncmp to compare exact prefix length - allows longer strings with matching prefix */
-        if (strncmp(str, prefixes[i], len) == 0) {
-            return 1;  /* Match found - success */
-        }
-    }
-
-    /* Step 5: No matches found */
-    return 0;
-} /* checkStringPrefix */
-
-/*
- * checksum_append_to - Computes 8-bit checksum and appends decimal string to sendData
- * @input: Input null-terminated string (max 12 characters)
- * @sendData: sendData buffer for result (minimum 18 bytes capacity)
- *
- * Computes the 8-bit checksum (sum of input bytes modulo 256) of the input string,
- * then appends the decimal representation as ASCII characters to the sendData buffer.
- * The appended checksum excludes itself from the computation.
- * Input is truncated if longer than 12 characters to ensure buffer safety.
- *
- * Return:
- *   uint8_t - Checksum value (0-255) on success
- *   0 - On error (null input/sendData pointers or input >12 chars)
- */
-uint8_t checksumAppend(const char *input, char *sendData) {
-    /* Validate inputs: check for null pointers or excessive length */
-    if (!input || !sendData || strlen(input) > 12) {  /* Reduced to leave room for up to 3 decimal digits + null */
-        return 0;  /* Error case: invalid arguments */
-    }
-    
-    /* Determine input length and safely copy to sendData buffer */
-    size_t lenghtInputString = strlen(input);
-    strcpy(sendData, input);  /* Copies null terminator */
-    size_t lenghtsendDataString = strlen(sendData);
-    
-    /* Accumulate 8-bit sum: add each byte value, overflow wraps mod 256 */
-    uint8_t checksum8 = 0;
-    for (size_t i = 0; i < lenghtInputString; i++) {
-        checksum8 += (uint8_t)input[i];  /* Cast ensures byte treatment */
-    }
-    
-    uint8_t sum;
-    sum = checksum8;
-
-    /* Convert uint8_t checksum to decimal ASCII digits using division */
-    if (sum >= 100) {
-        /* Hundreds digit (100-255) */
-        sendData[lenghtsendDataString++] = '0' + (sum / 100);
-        sum %= 100;
-    }
-    if (sum >= 10) {
-        /* Tens digit */
-        sendData[lenghtsendDataString++] = '0' + (sum / 10);
-        sum %= 10;
-    }
-    /* Units digit */
-    sendData[lenghtsendDataString++] = '0' + sum;
-    
-    /* Null-terminate the resulting string */
-    sendData[lenghtsendDataString] = '\0';
-    
-    /* Return computed checksum value for verification */
-    return checksum8;
-} /* checksumAppend */
 
 /** printString - prints inputed string in ascii and hex characters
  *                until '\0' found
@@ -279,12 +108,13 @@ uint8_t checksumAppend(const char *input, char *sendData) {
 int printString(const char* string) {
   int i;
 
+  printf("\n");
   for (i = 0; string[i] != '\0'; i++) {
     printf("%x ", (int)string[i]);  // Cast to int for clarity
   }
   printf("\n");
   for (i = 0; string[i] != '\0'; i++) {
-    if ((int)(string[i] > 32) & (int)(string[i] < 127)) {
+    if ((int)(string[i] > 31) & (int)(string[i] < 127)) {
       printf("%c ", (char)string[i]);  // Cast to char for clarity
     } else {
       printf("*");
@@ -297,4 +127,4 @@ int printString(const char* string) {
   } else {
     return (-1);
   }
-}
+} /* printString */
